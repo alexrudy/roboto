@@ -1,3 +1,27 @@
+//! Parsing and applying robots.txt files.
+//!
+//! # Examples
+//! ```
+//! use roboto::Robots;
+//!
+//! let robots = r#"
+//! User-agent: *
+//! Disallow: /
+//! "#.parse::<Robots>().unwrap();
+//!
+//! assert!(!robots.is_allowed(&"googlebot".parse().unwrap(), "/"));
+//! assert!(robots.is_allowed(&"googlebot".parse().unwrap(), "/robots.txt"));
+//! assert!(!robots.is_allowed(&"googlebot".parse().unwrap(), "/foo/bar"));
+//! ```
+//!
+//! # References
+//! - [The Web Robots Pages](https://www.robotstxt.org/)
+//! - [RFC1945](https://datatracker.ietf.org/doc/html/rfc1945#section-3.7)
+//! - [WikiPedia](https://en.wikipedia.org/wiki/Robots_exclusion_standard)
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![deny(unsafe_code)]
+
 use std::{fmt, hash::Hash, ops::Deref, str::FromStr};
 
 use camino::Utf8Path;
@@ -19,10 +43,31 @@ fn is_rfc1945_path(c: char) -> bool {
     c == '/' || c == '%' || c.is_ascii_alphanumeric() || PSAFE.contains(c) || PEXTRA.contains(c)
 }
 
+/// A User-Agent string.
+///
+/// This type represents a User-Agent string as defined in the [RFC1945](https://datatracker.ietf.org/doc/html/rfc1945#section-3.7).
+///
+/// # Examples
+///
+/// ```
+/// use roboto::UserAgent;
+///
+/// let agent = "googlebot".parse::<UserAgent>().unwrap();
+/// assert_eq!(agent.to_string(), "googlebot");
+///
+/// let agent = "*".parse::<UserAgent>().unwrap();
+/// assert_eq!(agent, UserAgent::ANY);
+///
+/// // User agents must be valid ascii
+/// assert!("😀".parse::<UserAgent>().is_err());
+/// ```
 #[derive(Debug, Clone)]
 pub struct UserAgent(Option<Box<str>>);
 
 impl UserAgent {
+    /// A User-Agent string that matches all User-Agents.
+    ///
+    /// This is normally spelled as `*` in a robots.txt file.
     pub const ANY: UserAgent = UserAgent(None);
 
     fn is_wildcard(&self) -> bool {
@@ -92,6 +137,23 @@ enum PathInner {
     Robots,
 }
 
+/// A path directive in a robots.txt file.
+///
+/// Path directives can match any url path, spelled as `/, no path (left empty) or a specific path.
+///
+/// # Examples
+/// ```
+/// use roboto::DirectivePath;
+///
+/// let path = "/foo/bar".parse::<DirectivePath>().unwrap();
+/// assert!(path.matches("/foo/bar/baz"));
+///
+/// let path = DirectivePath::ANY;
+/// assert!(path.matches("/foo/bar/baz"));
+///
+/// let path = DirectivePath::NONE;
+/// assert!(!path.matches("/foo/bar/baz"));
+/// ````
 #[derive(Debug, Clone)]
 pub struct DirectivePath(PathInner);
 
@@ -121,14 +183,17 @@ impl DirectivePath {
         }
     }
 
+    /// Check if this directive path will match no paths.
     pub fn is_none(&self) -> bool {
         matches!(self.0, PathInner::None)
     }
 
+    /// Check if this directive path will match any path.
     pub fn is_any(&self) -> bool {
         matches!(self.0, PathInner::Any)
     }
 
+    /// Check if this directive path will match `/robots.txt`
     pub fn is_robots(&self) -> bool {
         matches!(self.0, PathInner::Robots)
     }
@@ -193,10 +258,20 @@ impl FromStr for DirectivePath {
     }
 }
 
+/// A directive type in a robots.txt file.
+///
+/// robots.txt files contain a list of directives, which can be either `Allow`, `Disallow` or an extension.
+///
+/// The directives control how to process the associated path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DirectiveType {
+    /// Allow the following paths
     Allow,
+
+    /// Disallow the following paths
     Disallow,
+
+    /// An extension directive.
     Extension(Box<str>),
 }
 
@@ -210,6 +285,7 @@ impl fmt::Display for DirectiveType {
     }
 }
 
+/// A directive in a robots.txt file, which associates a path with a directive type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Directive {
     path: DirectivePath,
@@ -252,6 +328,12 @@ impl fmt::Display for Directive {
     }
 }
 
+/// A set of User-Agents and associated directives.
+///
+/// This type represents a set of User-Agents and their associated directives in a robots.txt file.
+/// Multiple User-Agents can be associated with the same directives, by listing them all in the same block.
+///
+/// This type is used by [`Robots`] to represent sets of rules and apply them together.`
 #[derive(Debug, Clone, PartialEq)]
 pub struct RobotAgent {
     agents: Vec<UserAgent>,
@@ -270,6 +352,35 @@ impl fmt::Display for RobotAgent {
     }
 }
 
+/// A robots.txt file.
+///
+/// The full set of rules for a robots.txt file, including wildcard directives.
+///
+/// This type is used to parse and apply rules to a given path and User-Agent.
+///
+/// # Examples
+/// ```
+/// use roboto::Robots;
+///
+/// let robots = r#"
+/// User-agent: *
+/// Disallow: /foo/bar
+/// Allow: /hello
+/// "#.parse::<Robots>().unwrap();
+///
+/// assert!(robots.is_allowed(&"googlebot".parse().unwrap(), "/hello"));
+/// assert!(!robots.is_allowed(&"googlebot".parse().unwrap(), "/foo/bar"));
+///
+/// let robots = r#"
+/// User-agent: googlebot
+/// Disallow: /foo/bar
+/// "#.parse::<Robots>().unwrap();
+///
+/// assert!(!robots.is_allowed(&"googlebot".parse().unwrap(), "/foo/bar"));
+/// assert!(robots.is_allowed(&"googlebot".parse().unwrap(), "/hello"));
+/// assert!(robots.is_allowed(&"bingbot".parse().unwrap(), "/foo/bar"));
+///
+/// ```
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Robots {
     /// Wildcard directives
@@ -278,7 +389,7 @@ pub struct Robots {
     /// no other agent matches.
     pub wildcard: Vec<Directive>,
 
-    /// Agents
+    /// Agent-specific directives
     pub agents: Vec<RobotAgent>,
 }
 
@@ -397,6 +508,7 @@ impl Robots {
         }
     }
 
+    /// Check if a path is allowed for a given User-Agent.
     pub fn is_allowed(&self, user_agent: &UserAgent, path: &str) -> bool {
         // robots.txt must be always allowed.
         if DirectivePath::ROBOTS.matches(path) {
@@ -422,6 +534,7 @@ impl Robots {
             }
         }
 
+        // User-agents which don't match any specific agent are checked against the wildcard directives.
         for directive in &self.wildcard {
             if directive.path.matches(path) {
                 match directive.rule {

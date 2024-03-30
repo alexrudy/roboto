@@ -2,12 +2,16 @@
 
 use std::fmt;
 
+/// Error type for parsing a user agent
 #[derive(Debug)]
 pub enum UserAgentParseError {
+    /// User agent is empty, not allowed
     EmptyUserAgent,
 
+    /// User agent is not valid ascii
     InvalidUserAgentEncoding,
 
+    /// User agent contains invalid characters
     InvalidCharacters,
 }
 
@@ -27,10 +31,13 @@ impl fmt::Display for UserAgentParseError {
 
 impl std::error::Error for UserAgentParseError {}
 
+/// Error type for parsing a directive path
 #[derive(Debug)]
 pub enum DirectivePathParseError {
+    /// Path is not valid ascii
     InvalidPathEncoding,
 
+    /// Path contains invalid characters
     InvalidCharacters,
 }
 
@@ -49,9 +56,13 @@ impl fmt::Display for DirectivePathParseError {
 
 impl std::error::Error for DirectivePathParseError {}
 
+/// Error type for parsing a directive
 #[derive(Debug)]
 pub enum DirectiveParseError {
+    /// Directive rule is invalid (e.g. missing colon, missing path, rule is a non-ascii string, etc.)
     InvalidRule,
+
+    /// Directive path is invalid
     InvalidPath(DirectivePathParseError),
 }
 
@@ -79,9 +90,13 @@ impl std::error::Error for DirectiveParseError {
     }
 }
 
+/// Error type for parsing a robots.txt file
 #[derive(Debug)]
 pub enum RobotParseError {
+    /// User agent is invalid
     InvalidUserAgent(UserAgentParseError, String),
+
+    /// Directive is invalid
     InvalidDirective(DirectiveParseError, String),
 }
 
