@@ -22,5 +22,7 @@ Disallow: /private
 Disallow: /tmp
 "#.parse::<Robots>().unwrap();
 
-assert_eq!(robots.allowed("/public"), true);
+let user_agent = "googlebot".parse().unwrap();
+
+assert_eq!(robots.is_allowed(&user_agent, "/public"), true);
 ```

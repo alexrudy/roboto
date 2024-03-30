@@ -32,6 +32,11 @@ use crate::error::DirectivePathParseError;
 use crate::error::RobotParseError;
 use crate::error::UserAgentParseError;
 
+#[doc(hidden)]
+mod readme {
+    #![doc = include_str!("../README.md")]
+}
+
 const TSPECIALS: &str = "()<>@,;:\\\"/[]?={} \t";
 const PSAFE: &str = "$-_.+~";
 const PEXTRA: &str = "!*'(),";
