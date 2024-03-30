@@ -49,6 +49,9 @@ jobs:
   lints:
     name: Lints
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
     steps:
       - name: Checkout
         uses: actions/checkout@v2
