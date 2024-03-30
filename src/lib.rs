@@ -2,6 +2,12 @@ use std::{fmt, hash::Hash, ops::Deref, str::FromStr};
 
 use camino::Utf8Path;
 
+pub mod error;
+use crate::error::DirectiveParseError;
+use crate::error::DirectivePathParseError;
+use crate::error::RobotParseError;
+use crate::error::UserAgentParseError;
+
 const TSPECIALS: &str = "()<>@,;:\\\"/[]?={} \t";
 const PSAFE: &str = "$-_.+~";
 const PEXTRA: &str = "!*'(),";
@@ -12,30 +18,6 @@ fn is_rfc1945_token(c: char) -> bool {
 fn is_rfc1945_path(c: char) -> bool {
     c == '/' || c == '%' || c.is_ascii_alphanumeric() || PSAFE.contains(c) || PEXTRA.contains(c)
 }
-#[derive(Debug)]
-pub enum UserAgentParseError {
-    EmptyUserAgent,
-
-    InvalidUserAgentEncoding,
-
-    InvalidCharacters,
-}
-
-impl fmt::Display for UserAgentParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            UserAgentParseError::EmptyUserAgent => write!(f, "User agent must be non-empty"),
-            UserAgentParseError::InvalidUserAgentEncoding => {
-                write!(f, "User agent must be a valid ascii")
-            }
-            UserAgentParseError::InvalidCharacters => {
-                write!(f, "User agent contains invalid characters")
-            }
-        }
-    }
-}
-
-impl std::error::Error for UserAgentParseError {}
 
 #[derive(Debug, Clone)]
 pub struct UserAgent(Option<Box<str>>);
@@ -101,28 +83,6 @@ impl fmt::Display for UserAgent {
         }
     }
 }
-
-#[derive(Debug)]
-pub enum DirectivePathParseError {
-    InvalidPathEncoding,
-
-    InvalidCharacters,
-}
-
-impl fmt::Display for DirectivePathParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DirectivePathParseError::InvalidPathEncoding => {
-                write!(f, "Path must be a valid ascii")
-            }
-            DirectivePathParseError::InvalidCharacters => {
-                write!(f, "Path contains invalid characters")
-            }
-        }
-    }
-}
-
-impl std::error::Error for DirectivePathParseError {}
 
 #[derive(Debug, Clone, Hash)]
 enum PathInner {
@@ -233,36 +193,6 @@ impl FromStr for DirectivePath {
     }
 }
 
-#[derive(Debug)]
-pub enum DirectiveParseError {
-    InvalidRule,
-    InvalidPath(DirectivePathParseError),
-}
-
-impl fmt::Display for DirectiveParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DirectiveParseError::InvalidRule => write!(f, "Directive rule is invalid"),
-            DirectiveParseError::InvalidPath(err) => write!(f, "{}", err),
-        }
-    }
-}
-
-impl From<DirectivePathParseError> for DirectiveParseError {
-    fn from(err: DirectivePathParseError) -> Self {
-        DirectiveParseError::InvalidPath(err)
-    }
-}
-
-impl std::error::Error for DirectiveParseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            DirectiveParseError::InvalidRule => None,
-            DirectiveParseError::InvalidPath(err) => Some(err),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DirectiveType {
     Allow,
@@ -318,34 +248,6 @@ impl fmt::Display for Directive {
             write!(f, "{}:", self.rule)
         } else {
             write!(f, "{}: {}", self.rule, self.path)
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum RobotParseError {
-    InvalidUserAgent(UserAgentParseError, String),
-    InvalidDirective(DirectiveParseError, String),
-}
-
-impl fmt::Display for RobotParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RobotParseError::InvalidUserAgent(err, agent) => {
-                write!(f, "{}: {}", err, agent)
-            }
-            RobotParseError::InvalidDirective(err, directive) => {
-                write!(f, "{}: {}", err, directive)
-            }
-        }
-    }
-}
-
-impl std::error::Error for RobotParseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            RobotParseError::InvalidUserAgent(err, _) => Some(err),
-            RobotParseError::InvalidDirective(err, _) => Some(err),
         }
     }
 }
