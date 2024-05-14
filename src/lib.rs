@@ -579,6 +579,9 @@ mod test {
         let path = "/foo/bar".parse::<DirectivePath>().unwrap();
         assert!(path.matches("/foo/bar/baz"));
         assert!(!path.matches("/foo"));
+        assert!(!path.matches("/foo/b"));
+        assert!(!path.matches("/foo/barley"));
+        assert!(path.matches("/foo/bar/"));
 
         let path = DirectivePath::ANY;
         assert!(path.matches("/foo/bar/baz"));
