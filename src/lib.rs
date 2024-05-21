@@ -32,8 +32,8 @@ use crate::error::DirectivePathParseError;
 use crate::error::RobotParseError;
 use crate::error::UserAgentParseError;
 
-#[doc(hidden)]
 mod readme {
+    #![doc(hidden)]
     #![doc = include_str!("../README.md")]
 }
 
