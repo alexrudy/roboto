@@ -32,7 +32,7 @@ let user_agent = "googlebot".parse().unwrap();
 assert_eq!(robots.is_allowed(&user_agent, "/public"), true);
 ```
 
-[crate-image]: https://buildstats.info/crate/roboto
+[crate-image]: https://img.shields.io/crates/v/roboto
 [crate-link]: https://crates.io/crates/roboto
 [docs-image]: https://docs.rs/roboto/badge.svg
 [docs-link]: https://docs.rs/roboto/
